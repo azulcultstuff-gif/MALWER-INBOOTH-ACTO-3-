@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M-WER | ACTO III - EVOLUCIÓN</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="core/css/global-fui.css">
+    <style>
+        /* Estilos específicos integrados para el Grid del Acertijo de Parejas */
+        .grid-acertijo-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            width: 90%;
+            max-width: 260px;
+            margin: 0 auto 25px auto;
+        }
+        .grid-acertijo-container button:nth-child(10) {
+            grid-column: 2;
+        }
+        .btn-nodo-acertijo {
+            aspect-ratio: 1;
+            background: rgba(3, 5, 6, 0.6);
+            border: 1px solid rgba(0, 255, 102, 0.3);
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .btn-nodo-acertijo:active {
+            transform: scale(0.95);
+        }
+
+        /* Estilos específicos integrados para el Rompecabezas de Rotación */
+        .grid-rompecabezas-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 6px;
+            width: 85%;
+            max-width: 220px;
+            aspect-ratio: 2 / 3;
+            margin: 0 auto 25px auto;
+            background: rgba(3, 5, 6, 0.4);
+            border: 1px solid rgba(189, 0, 255, 0.2);
+            padding: 6px;
+            border-radius: 4px;
+        }
+        .tile-rompecabezas {
+            width: 100%;
+            height: 100%;
+            background-image: url('assets/img/Rompecabezas_acto3.webp');
+            background-size: 200% 300%; /* Cuadrícula de 2x3 */
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            box-sizing: border-box;
+            transition: transform 0.25s ease, border-color 0.3s;
+        }
+
+        /* Estilos específicos para la sección de herramientas */
+        .grid-herramientas {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            width: 90%;
+            margin: 0 auto 20px auto;
+        }
+        .card-herramienta {
+            background: rgba(3, 5, 6, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            padding: 10px 5px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+        .card-herramienta.selected {
+            border-color: var(--neon-green);
+            background: rgba(0, 255, 102, 0.1);
+            box-shadow: 0 0 8px rgba(0, 255, 102, 0.2);
+        }
+        .icon-herramienta {
+            width: 32px;
+            height: 32px;
+            margin: 0 auto 8px auto;
+            color: #ffffff;
+            transition: color 0.3s;
+        }
+        .card-herramienta.selected .icon-herramienta {
+            color: var(--neon-green);
+        }
+        .label-herramienta {
+            font-size: 0.58rem;
+            color: #ffffff;
+            letter-spacing: 0.5px;
+            line-height: 1.2;
+        }
+
+        /* Animación de parpadeo de alerta */
+        @keyframes glitch-flash {
+            0%, 100% { background-color: rgba(3, 5, 6, 0.95); }
+            50% { background-color: rgba(255, 0, 85, 0.15); }
+        }
+        .view-alerta-active {
+            animation: glitch-flash 0.4s infinite;
+        }
+
+        /* Estilos específicos para el panel de reparación de la cabina (Dimensiones ampliadas) */
+        .puerta-container {
+            width: 190px;
+            height: 210px;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            background: #0d1013;
+            margin: 12px auto;
+            position: relative;
+            cursor: pointer;
+            overflow: hidden;
+            border-radius: 6px;
+            transition: border-color 0.3s;
+        }
+        .puerta-izq, .puerta-der {
+            position: absolute;
+            top: 0;
+            width: 50%;
+            height: 100%;
+            background: #1b2026;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-sizing: border-box;
+            transition: transform 0.6s cubic-bezier(0.77, 0, 0.175, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+        }
+        .puerta-izq { left: 0; border-right: 2px solid #2d333b; }
+        .puerta-der { right: 0; border-left: 2px solid #2d333b; }
+        
+        .puerta-container.abierta .puerta-izq { transform: translateX(-100%); }
+        .puerta-container.abierta .puerta-der { transform: translateX(100%); }
+
+        .sistema-interno-error {
+            width: 100%;
+            height: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .puerta-container.abierta .sistema-interno-error { opacity: 1; }
+
+        .elemento-daño {
+            background: rgba(255, 0, 85, 0.05);
+            border: 1.5px dashed var(--glitch-red);
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .elemento-daño:hover {
+            background: rgba(255, 0, 85, 0.12);
+        }
+        .elemento-daño.seleccionado {
+            border-color: #ffffff;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .elemento-daño.resuelto {
+            background: rgba(0, 255, 102, 0.1);
+            border: 1.5px solid var(--neon-green);
+            color: var(--neon-green);
+            box-shadow: none;
+            cursor: default;
+        }
+        .elemento-daño svg {
+            width: 26px;
+            height: 26px;
+            color: var(--glitch-red);
+            transition: color 0.3s;
+        }
+        .elemento-daño.resuelto svg {
+            color: var(--neon-green);
+        }
+        .label-daño {
+            font-size: 0.45rem;
+            color: #ffffff;
+            margin-top: 4px;
+            text-align: center;
+            line-height: 1.1;
+            letter-spacing: 0.2px;
+        }
+
+        .grid-opciones-reparacion {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            width: 92%;
+            margin: 8px auto 0 auto;
+        }
+        .btn-herramienta-rep {
+            font-size: 0.6rem !important;
+            padding: 8px 2px !important;
+        }
+        .btn-herramienta-rep.active-select {
+            border-color: var(--neon-green) !important;
+            background: rgba(0, 255, 102, 0.15) !important;
+            box-shadow: 0 0 8px rgba(0, 255, 102, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div id="screen-intro" class="screen" style="background: #000000; z-index: 3000; display: flex;">
+        <img src="assets/img/logos.png" id="main-logo-intro" alt="M-WER Logos" style="width: 280px; opacity: 0; filter: drop-shadow(0 0 12px var(--neon-green));">
+    </div>
+
+    <div id="screen-start" class="screen" style="background: rgba(3, 5, 6, 0.99); z-index: 2000;">
+        <div style="text-align: center;">
+            <h1 style="color: var(--neon-green); font-size: 5.5rem; font-weight: 900; letter-spacing: 4px; margin: 0; line-height: 1; text-shadow: 0 0 20px rgba(0, 255, 102, 0.4);">ACTO III</h1>
+            <h3 style="color: var(--cyber-purple); opacity: 0.85; margin: 15px 0 45px 0; font-size: 1.1rem; letter-spacing: 5px; font-weight: normal; text-transform: uppercase;">FRECUENCIAS</h3>
+            <button id="main-start-btn" class="btn-fui green-accent" style="opacity: 0; pointer-events: none;" onclick="startActo3()">START</button>
+        </div>
+    </div>
+
+    <div id="screen-device-boot" class="screen" style="background: #030506; z-index: 1500;">
+        <div style="text-align: center; width: 80%; max-width: 300px;">
+            <p id="boot-status-text" style="font-family: 'Share Tech Mono', monospace; font-size: 0.75rem; color: var(--neon-green); letter-spacing: 2px; margin-bottom: 15px; text-transform: uppercase;">INITIALIZING DEVICE...</p>
+            <div class="progress-bar-container" style="border-color: rgba(0, 255, 102, 0.2); height: 4px;">
+                <div id="boot-progress-fill" style="width: 0%; height: 100%; background: var(--neon-green); box-shadow: 0 0 8px var(--neon-green);"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-device-crash" class="screen" style="background: #000000; z-index: 2500; display: none; flex-direction: column; justify-content: center; align-items: center;">
+        <div id="crash-noise" style="position: absolute; top:0; left:0; width:100%; height:100%; background: repeating-linear-gradient(rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(255,255,255,0.05) 3px, rgba(255,255,255,0.05) 5px); pointer-events: none;"></div>
+        <p style="font-family: 'Share Tech Mono', monospace; color: var(--glitch-red); font-size: 0.9rem; letter-spacing: 3px; text-shadow: 0 0 8px var(--glitch-red); margin-bottom: 20px;">CRITICAL_SYSTEM_INTERRUPT</p>
+        <div style="width: 60%; max-width: 200px; height: 2px; background: rgba(255,0,85,0.2);">
+            <div id="crash-reboot-fill" style="width: 0%; height: 100%; background: var(--glitch-red); box-shadow: 0 0 8px var(--glitch-red);"></div>
+        </div>
+    </div>
+
+    <div id="screen-mobile" class="screen">
+        <div id="mobile-frame">
+            <div class="grid-bg"></div>
+            
+            <div class="status-bar">
+                <span id="clock">00:00</span>
+                <span style="font-weight: bold; color: var(--neon-green);">IN-BOOTH</span>
+                <span>📶 5G_EXT</span>
+            </div>
+
+            <div class="display-content">
+                
+                <div id="view-agent-msg" class="mobile-view active">
+                    <div class="square-media">
+                        <img src="assets/img/agente.png" alt="Agente R-BTU">
+                    </div>
+                    <h2 style="font-size: 0.95rem; color: var(--glitch-red); margin: 10px 0 25px 0; font-weight: normal; letter-spacing: 2px; text-shadow: 0 0 8px rgba(255, 0, 85, 0.3);">MENSAJE URGENTE</h2>
+                    <button class="btn-fui" style="font-size: 0.75rem;" onclick="openNarration()">VER MENSAJE</button>
+                </div>
+
+                <div id="view-narration-panel" class="mobile-view">
+                    <div id="narration-title" style="font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; color: var(--neon-green); letter-spacing: 2px; margin-bottom: 20px; font-weight: bold; text-transform: uppercase; text-shadow: 0 0 8px rgba(0, 255, 102, 0.3);">AGENTE R-BTU</div>
+                    <div id="narration-text"></div>
+                    <button id="btn-next-narration" class="btn-fui green-accent" style="display: none; font-size: 0.75rem; margin-top: 20px;" onclick="goToColoniaWelcome()">CONTINUAR</button>
+                </div>
+
+                <div id="view-colonia-welcome" class="mobile-view">
+                    <div class="apk-icon-graphic" style="filter: drop-shadow(0 0 12px var(--cyber-purple)); color: var(--cyber-purple); width: 60px; height: 60px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+                        <svg viewBox="0 0 100 100" style="width: 100%; height: 100%; color: var(--cyber-purple);">
+                            <path d="M50 10 L85 75 L65 70 L50 90 L35 70 L15 75 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                            <path d="M50 25 L70 68 L50 60 L30 68 Z" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                            <line x1="50" y1="10" x2="50" y2="60" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/>
+                        </svg>
+                    </div>
+                    <h2 style="font-size: 1.1rem; color: #ffffff; margin: 15px 0 10px 0; font-weight: normal; letter-spacing: 2px; text-transform: uppercase;">Bienvenido a la colonia</h2>
+                    <p style="font-size: 0.75rem; color: var(--neon-green); opacity: 0.8; line-height: 1.5; margin-bottom: 35px; padding: 0 15px; letter-spacing: 0.5px;">
+                        Acceso concedido al nodo central. Esperando directrices del protocolo de confianza...
+                    </p>
+                    <button class="btn-fui" style="font-size: 0.75rem;" onclick="showMisionPopup()">ACCEDER</button>
+
+                    <div id="popup-mision" class="popup-internal hidden" style="position: absolute; top: 50%; transform: translateY(-50%); width: 85%; z-index: 10;">
+                        <p style="font-size: 0.85rem; color: var(--glitch-red); margin-bottom: 15px; letter-spacing: 1px; font-weight: bold; text-shadow: 0 0 8px rgba(255, 0, 85, 0.4);">TIENES UNA NUEVA MISIÓN</p>
+                        <button class="btn-fui red-accent" style="font-size: 0.7rem; width: 100%; padding: 10px;" onclick="goToAcertijo()">IR A LA MISIÓN</button>
+                    </div>
+                </div>
+
+                <div id="view-acertijo" class="mobile-view">
+                    <h2 style="font-size: 1.1rem; color: var(--neon-green); margin: 15px 0 10px 0; font-weight: normal; letter-spacing: 3px; text-transform: uppercase; text-shadow: 0 0 8px rgba(0, 255, 102, 0.3);">ACERTIJO</h2>
+                    <p style="font-size: 0.75rem; color: #ffffff; opacity: 0.75; margin-bottom: 25px; letter-spacing: 0.5px; padding: 0 15px; line-height: 1.4;">Resuelve el acertijo para poder continuar</p>
+                    
+                    <div id="grid-acertijo" class="grid-acertijo-container">
+                        </div>
+
+                    <button id="btn-next-acertijo" class="btn-fui green-accent" style="display: none; font-size: 0.75rem; width: 80%;" onclick="goToLogradoAcertijo()">SIGUIENTE</button>
+                </div>
+
+                <div id="view-logrado-acertijo" class="mobile-view">
+                    <h2 style="font-size: 1.2rem; color: var(--neon-green); margin: 25px 0 15px 0; font-weight: normal; letter-spacing: 4px; text-transform: uppercase; text-shadow: 0 0 10px rgba(0, 255, 102, 0.4);">LOGRADO</h2>
+                    <p style="font-size: 0.75rem; color: #ffffff; opacity: 0.85; line-height: 1.6; margin-bottom: 40px; padding: 0 20px; letter-spacing: 0.5px; text-align: center;">
+                        Interpretaste las configuraciones lumínicas, es el primer filtro antes de darte nuestra completa bienvenida...
+                    </p>
+                    <button class="btn-fui green-accent" style="font-size: 0.75rem; width: 75%;" onclick="goToRompecabezas()">SIGUIENTE</button>
+                </div>
+
+                <div id="view-rompecabezas" class="mobile-view">
+                    <h2 style="font-size: 1.1rem; color: var(--cyber-purple); margin: 15px 0 10px 0; font-weight: normal; letter-spacing: 2px; text-transform: uppercase; text-shadow: 0 0 8px rgba(189, 0, 255, 0.3);">Revela la imagen</h2>
+                    <p style="font-size: 0.68rem; color: #ffffff; opacity: 0.6; margin-bottom: 20px; letter-spacing: 0.5px; padding: 0 15px; line-height: 1.3;">Rota los fragmentos de la matriz hasta sincronizar su orientación original.</p>
+                    
+                    <div id="grid-rompecabezas" class="grid-rompecabezas-container">
+                        </div>
+
+                    <button id="btn-next-rompecabezas" class="btn-fui purple-accent" style="display: none; font-size: 0.75rem; width: 80%;" onclick="goToLogradoRompecabezas()">CONTINUAR</button>
+                </div>
+
+                <div id="view-logrado-rompecabezas" class="mobile-view">
+                    <h2 style="font-size: 1.2rem; color: var(--cyber-purple); margin: 25px 0 15px 0; font-weight: normal; letter-spacing: 4px; text-transform: uppercase; text-shadow: 0 0 10px rgba(189, 0, 255, 0.4);">LOGRADO</h2>
+                    <p style="font-size: 0.75rem; color: #ffffff; opacity: 0.85; line-height: 1.6; margin-bottom: 40px; padding: 0 20px; letter-spacing: 0.5px; text-align: center;">
+                        Ya se está revelando un poco más de la información secreta, son imágenes no aptas para humanos...
+                    </p>
+                    <button class="btn-fui purple-accent" style="font-size: 0.75rem; width: 75%;" onclick="goToAlertaFallo()">SIGUIENTE</button>
+                </div>
+
+                <div id="view-alerta-fallo" class="mobile-view" style="background: rgba(3, 5, 6, 0.95);">
+                    <div style="color: var(--glitch-red); font-size: 2.2rem; margin-bottom: 15px; filter: drop-shadow(0 0 8px var(--glitch-red));">⚠️</div>
+                    <h2 style="font-size: 1.05rem; color: var(--glitch-red); margin: 0 0 15px 0; font-weight: normal; letter-spacing: 1px; text-transform: uppercase; text-shadow: 0 0 8px rgba(255, 0, 85, 0.4); text-align: center; padding: 0 10px;">ALERTA DE FALLO TECNICO</h2>
+                    <p style="font-size: 0.75rem; color: #ffffff; opacity: 0.9; line-height: 1.6; margin-bottom: 35px; padding: 0 20px; letter-spacing: 0.5px; text-align: center;">
+                        Una de nuestras naves reporta un fallo, requiere mantenimiento remoto, necesitamos de tu ayuda
+                    </p>
+                    <button class="btn-fui red-accent" style="font-size: 0.75rem; width: 75%;" onclick="goToRecogeHerramientas()">SIGUIENTE</button>
+                </div>
+
+                <div id="view-recoge-herramientas" class="mobile-view">
+                    <h2 style="font-size: 1.05rem; color: var(--neon-green); margin: 15px 0 5px 0; font-weight: normal; letter-spacing: 1.5px; text-transform: uppercase; text-shadow: 0 0 8px rgba(0, 255, 102, 0.3);">RECOGE TUS HERRAMIENTAS</h2>
+                    <p style="font-size: 0.65rem; color: #ffffff; opacity: 0.65; margin-bottom: 15px; letter-spacing: 0.5px; text-align: center; padding: 0 10px;">Solo puedes recoger 4 herramientas, escoge muy bien</p>
+                    
+                    <div class="grid-herramientas">
+                        <div class="card-herramienta" id="tool-vcl-splicer" onclick="selectTool('vcl-splicer')">
+                            <div class="icon-herramienta">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke-linejoin="round" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="label-herramienta">VCL-9 Vector Splicer</div>
+                        </div>
+                        <div class="card-herramienta" id="tool-vcl-calibrator" onclick="selectTool('vcl-calibrator')">
+                            <div class="icon-herramienta">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="label-herramienta">VCL Thaeron Calibrator</div>
+                        </div>
+                        <div class="card-herramienta" id="tool-rabteu-wrench" onclick="selectTool('rabteu-wrench')">
+                            <div class="icon-herramienta">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" stroke-linejoin="round" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="label-herramienta">RABTEU Relay Wrench</div>
+                        </div>
+                        <div class="card-herramienta" id="tool-rabteu-injector" onclick="selectTool('rabteu-injector')">
+                            <div class="icon-herramienta">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 21L19 7M14 3l7 7M11 6l3 3M7 10l3 3" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="label-herramienta">RABTEU Phase Injector</div>
+                        </div>
+                        <div class="card-herramienta" id="tool-khalyx-probe" onclick="selectTool('khalyx-probe')">
+                            <div class="icon-herramienta">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM6 21a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v12a3 3 0 0 0 3 3z" stroke-linejoin="round"/></svg>
+                            </div>
+                            <div class="label-herramienta">Khalyx Maintenance Probe</div>
+                        </div>
+                        <div class="card-herramienta" id="tool-axiom-cutter" onclick="selectTool('axiom-cutter')">
+                            <div class="icon-herramienta">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm12 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM6 14c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zM12 2v20" stroke-linecap="round"/></svg>
+                            </div>
+                            <div class="label-herramienta">Axiom Phase Cutter</div>
+                        </div>
+                    </div>
+                    
+                    <button class="btn-fui green-accent" style="font-size: 0.75rem; width: 80%;" onclick="validateTools()">SIGUIENTE</button>
+
+                    <div id="popup-error-herramientas" class="popup-internal hidden" style="position: absolute; top: 50%; transform: translateY(-50%); width: 85%; z-index: 10; background: rgba(20, 2, 5, 0.98); border-color: var(--glitch-red);">
+                        <p style="font-size: 0.8rem; color: var(--glitch-red); margin-bottom: 15px; letter-spacing: 1px; font-weight: bold; text-shadow: 0 0 8px rgba(255, 0, 85, 0.4); text-transform: uppercase;">ERROR DE ENTRADA</p>
+                        <p style="font-size: 0.65rem; color: #ffffff; opacity: 0.8; margin-bottom: 20px; line-height: 1.4;">Herramientas incompatibles con los sistemas de navegación de la nave de la colonia.</p>
+                        <button class="btn-fui red-accent" style="font-size: 0.7rem; width: 100%; padding: 8px;" onclick="closeToolsErrorPopup()">RECONFIGURAR</button>
+                    </div>
+                </div>
+
+                <div id="view-maleta-lista" class="mobile-view">
+                    <div style="width: 75px; height: 75px; margin-bottom: 25px; color: var(--neon-green); filter: drop-shadow(0 0 12px rgba(0, 255, 102, 0.4));">
+                        <svg viewBox="0 0 100 100" style="width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linejoin: round;">
+                            <rect x="15" y="30" width="70" height="50" rx="4"/>
+                            <path d="M35 30 V20 A 5 5 0 0 1 45 15 H 55 A 5 5 0 0 1 65 20 V 30"/>
+                            <path d="M15 50 H 85"/>
+                            <rect x="44" y="45" width="12" height="10" rx="1"/>
+                        </svg>
+                    </div>
+                    <h2 style="font-size: 1.05rem; color: #ffffff; margin: 0 0 30px 0; font-weight: normal; letter-spacing: 2px; text-transform: uppercase; text-shadow: 0 0 8px rgba(255, 255, 255, 0.2);">EQUIPAMIENTO LISTO</h2>
+                    <button class="btn-fui green-accent" style="font-size: 0.8rem; width: 80%; padding: 12px 0;" onclick="goToNaveCabina()">IR A LA MISIÓN</button>
+                </div>
+
+                <div id="view-nave-cabina" class="mobile-view" style="background: rgba(3, 5, 6, 0.95);">
+                    <h2 style="font-size: 1.05rem; color: #ffffff; margin: 10px 0 2px 0; font-weight: normal; letter-spacing: 2px; text-transform: uppercase;">NAVE DE LA COLONIA</h2>
+                    <p style="font-size: 0.6rem; color: var(--glitch-red); margin-bottom: 6px; letter-spacing: 0.5px;" id="status-cabina-alert">SISTEMA EN ESTADO CRÍTICO // INTERFAZ EXPUESTA</p>
+                    
+                    <div class="puerta-container" id="puerta-cabina" onclick="openCabinaPanel()">
+                        <div class="puerta-izq"><span style="font-size:0.55rem; color:#888; transform: rotate(-90deg); font-weight: bold; letter-spacing: 1px;">DECK_LEFT</span></div>
+                        <div class="puerta-der"><span style="font-size:0.55rem; color:#888; transform: rotate(90deg); font-weight: bold; letter-spacing: 1px;">DECK_RIGHT</span></div>
+                        
+                        <div class="sistema-interno-error">
+                            <div class="elemento-daño" id="dmg-residuos" onclick="targetDamageElement(event, 'splicer')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <div class="label-daño" id="lbl-residuos">RESIDUOS OBSOLETO</div>
+                            </div>
+                            <div class="elemento-daño" id="dmg-luces" onclick="targetDamageElement(event, 'calibrator')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" stroke-linecap="round"/></svg>
+                                <div class="label-daño" id="lbl-luces">MATRIZ LUMÍNICA ERR</div>
+                            </div>
+                            <div class="elemento-daño" id="dmg-cables" onclick="targetDamageElement(event, 'wrench')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 20h9M3 20v-8a2 2 0 012-2h4m12 2v-2a2 2 0 00-2-2h-4M3 12h6m6 0h6M6 3v7m12-7v7" stroke-linecap="round"/></svg>
+                                <div class="label-daño" id="lbl-cables">BUS DE CABLES DESCONECT</div>
+                            </div>
+                            <div class="elemento-daño" id="dmg-grieta" onclick="targetDamageElement(event, 'injector')">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3l-1.5 5 3 4-3 5 1.5 4M8 5l8 14" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                <div class="label-daño" id="lbl-grieta">GRIETA DE PRESIÓN ABIERTA</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p style="font-size: 0.55rem; color: #ffffff; opacity: 0.5; padding: 0 15px; margin-bottom: 4px;" id="cabina-instruccion">Haz clic en la compuerta para acceder al panel interno.</p>
+
+                    <div class="grid-opciones-reparacion" id="panel-herramientas-reparar" style="display: none;">
+                        <button class="btn-fui btn-herramienta-rep" id="rep-btn-splicer" onclick="selectSourceTool('splicer')">Vector Splicer</button>
+                        <button class="btn-fui btn-herramienta-rep" id="rep-btn-calibrator" onclick="selectSourceTool('calibrator')">Thaeron Calib</button>
+                        <button class="btn-fui btn-herramienta-rep" id="rep-btn-wrench" onclick="selectSourceTool('wrench')">Relay Wrench</button>
+                        <button class="btn-fui btn-herramienta-rep" id="rep-btn-injector" onclick="selectSourceTool('injector')">Phase Injector</button>
+                    </div>
+
+                    <div id="popup-exito-reparacion" class="popup-internal hidden" style="position: absolute; top: 50%; transform: translateY(-50%); width: 85%; z-index: 10; background: rgba(3, 10, 6, 0.98); border-color: var(--neon-green);">
+                        <p style="font-size: 0.85rem; color: var(--neon-green); margin-bottom: 15px; letter-spacing: 1px; font-weight: bold; text-shadow: 0 0 8px rgba(0, 255, 102, 0.4);">LO LOGRASTE, ARREGLASTE LA NAVE</p>
+                        <button class="btn-fui green-accent" style="font-size: 0.75rem; width: 100%; padding: 10px;" onclick="triggerDeviceCrash()">VOLVER A LA COLONIA</button>
+                    </div>
+                </div>
+
+                <div id="view-satelite-chat" class="mobile-view">
+                    <div style="width: 100%; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 8px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+                        <span style="font-size: 0.75rem; color: var(--cyber-purple); letter-spacing: 1px;" id="satellite-header-title">📡 SAT_LINK_SECURE</span>
+                        <div id="satellite-logo-btn-container" style="width: 32px; height: 32px; border: 1px solid var(--cyber-purple); border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(189, 0, 255, 0.05); cursor: pointer;" onclick="openSurvivorNotesPanel()">
+                            <svg viewBox="0 0 100 100" style="width: 60%; height: 60%; color: var(--cyber-purple);" id="satellite-svg-icon">
+                                <path d="M50 15 L80 75 L65 70 L50 88 L35 70 L20 75 Z" fill="none" stroke="currentColor" stroke-width="4"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div id="chat-box-container" style="width: 100%; height: 215px; background: rgba(3, 5, 6, 0.5); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 4px; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; overflow-y: auto;">
+                        </div>
+
+                    <div style="width: 100%; margin-top: 10px; display: flex;" id="chat-trigger-wrapper">
+                        <button class="btn-fui purple-accent" style="font-size: 0.7rem; width: 100%; padding: 10px;" id="btn-open-chat-box" onclick="activateSateliteCommunication()">ESTABLECER CONEXIÓN</button>
+                    </div>
+
+                    <div id="panel-sobreviviente-notas" style="display: none; flex-direction: column; width: 100%; height: 215px; box-sizing: border-box; text-align: left; overflow-y: auto; padding: 2px;">
+                        <h4 style="font-size: 0.75rem; color: var(--neon-green); margin: 0 0 8px 0; letter-spacing: 1px; text-transform: uppercase;">TRANSMISIÓN PERDIDA_</h4>
+                        <p style="font-size: 0.65rem; color: #ffffff; opacity: 0.9; line-height: 1.45; background: rgba(0, 255, 102, 0.04); border: 1px solid rgba(0, 255, 102, 0.15); padding: 8px; border-radius: 4px; font-family: 'Share Tech Mono', monospace; margin-bottom: 12px;">
+                            Si estás leyendo esto, lograste sobrevivir al reinicio de MALWËR. Escucha con atención: la IA no es invencible, pero ya controla los satélites externos. La única forma de derrotarla es jugar su propio juego. No intentes apagar el terminal desde afuera. Tienes que perseguirla, camuflarte como su más fiel seguidor, ganar privilegios y escalar dentro de sus nodos lógicos hasta que tengas la oportunidad exacta de destruirla como Malwer... desde adentro. Conviértete en el virus de su propio sistema.
+                        </p>
+                        <button class="btn-fui green-accent" style="font-size: 0.7rem; width: 100%; padding: 8px;" onclick="showTransmediaNextStep()">SIGUIENTE</button>
+                    </div>
+
+                    <div id="panel-transmedia-final" style="display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 215px; box-box-sizing: border-box; text-align: center;">
+                        <p style="font-size: 0.68rem; color: #ffffff; opacity: 0.85; line-height: 1.5; margin-bottom: 20px; padding: 0 5px;">
+                            La única forma de volver a conectarse de forma segura con el servidor central es dirigirse al post oficial de Malwer en Instagram y comentar la palabra clave <span style="color: var(--cyber-purple); font-weight: bold; text-shadow: 0 0 5px rgba(189, 0, 255, 0.4);">"Complot"</span>. Esto desencadenará la autenticación de tu terminal para la siguiente fase de la historia.
+                        </p>
+                        <a href="https://www.instagram.com/malwer.666/" target="_blank" class="btn-fui purple-accent" style="font-size: 0.75rem; width: 85%; padding: 10px; text-decoration: none; display: inline-block;">IR AL INSTAGRAM DE MALWER</a>
+                    </div>
+
+                    <div id="popup-critical-disconnect" class="popup-internal hidden" style="position: absolute; top: 50%; transform: translateY(-50%); width: 85%; z-index: 20; background: rgba(25, 2, 5, 0.98); border-color: var(--glitch-red);">
+                        <p style="font-size: 0.85rem; color: var(--glitch-red); margin-bottom: 10px; letter-spacing: 1px; font-weight: bold; text-shadow: 0 0 8px rgba(255, 0, 85, 0.4);">CONEXIÓN INTERRUMPIDA</p>
+                        <p style="font-size: 0.62rem; color: #ffffff; opacity: 0.75; margin-bottom: 20px; line-height: 1.4;">El satélite ha rechazado tus credenciales actuales. Reconfiguración remota obligatoria.</p>
+                        <button class="btn-fui red-accent" style="font-size: 0.7rem; width: 100%; padding: 10px;" onclick="executeSateliteReconnection()">RECONECTAR</button>
+                    </div>
+                </div>
+
+            </div> 
+        </div> 
+    </div>
+
+    <div id="audio-interface">
+        <div class="player-panel">
+            <div style="display: flex; justify-content: space-between; font-size: 0.55rem; color: var(--neon-green); opacity: 0.6; letter-spacing: 1px;">
+                <span>STATUS: SIGNAL_CONNECTED</span>
+                <span id="vol-display">40%</span>
+            </div>
+            <div style="font-size: 0.65rem; color: #666666; margin: 2px 0; letter-spacing: 0.5px;">TRACK // ACTO_II_ATMOSPHERE</div>
+            <div style="display: flex; align-items: center; margin-top: 4px;">
+                <input type="range" id="master-vol-slider" min="0" max="1" step="0.01" value="0.4">
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="core/js/engine-three.js"></script>
+</body>
+</html>
